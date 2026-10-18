@@ -31,14 +31,49 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(crew.process, Process.sequential)
         self.assertEqual(len(crew.agents), 22)
         self.assertEqual(len(crew.tasks), 37)
+        self.assertFalse(crew.verbose)
+        self.assertTrue(all(not agent.verbose for agent in crew.agents))
 
         task_positions = {id(task): index for index, task in enumerate(crew.tasks)}
+        context_sizes = []
         for index, task in enumerate(crew.tasks):
             self.assertTrue(task.expected_output.strip())
             if isinstance(task.context, list):
+                context_sizes.append(len(task.context))
                 for prerequisite in task.context:
                     self.assertIn(id(prerequisite), task_positions)
                     self.assertLess(task_positions[id(prerequisite)], index)
+        self.assertLessEqual(max(context_sizes), 9)
+
+        task_descriptions = [task.description for task in crew.tasks]
+        product_spec_index = next(
+            i for i, description in enumerate(task_descriptions)
+            if "write the product" in description.lower()
+        )
+        product_review_index = next(
+            i for i, description in enumerate(task_descriptions)
+            if "read product_spec.md and review it" in description.lower()
+        )
+        product_revision_index = next(
+            i for i, description in enumerate(task_descriptions)
+            if "read product_review.md and product_spec.md" in description.lower()
+        )
+        architecture_index = next(
+            i for i, description in enumerate(task_descriptions)
+            if "write the complete architecture" in description.lower()
+        )
+        architecture_review_index = next(
+            i for i, description in enumerate(task_descriptions)
+            if "write architecture_review.md" in description.lower()
+        )
+        architecture_revision_index = next(
+            i for i, description in enumerate(task_descriptions)
+            if "write architecture_decisions.md" in description.lower()
+        )
+        self.assertLess(product_spec_index, product_review_index)
+        self.assertLess(product_review_index, product_revision_index)
+        self.assertLess(architecture_index, architecture_review_index)
+        self.assertLess(architecture_review_index, architecture_revision_index)
 
         role_names = {agent.role for agent in crew.agents}
         self.assertIn("Product Research Analyst", role_names)
@@ -57,6 +92,10 @@ class PipelineTests(unittest.TestCase):
                 "QA Department Senior / Test Lead",
                 "Release Manager / Engineering Director",
             ],
+        )
+        self.assertEqual(
+            task_agents[-1],
+            "Release Manager / Engineering Director",
         )
 
     def test_live_research_tool_is_optional(self) -> None:
@@ -80,6 +119,10 @@ class PipelineTests(unittest.TestCase):
             ):
                 self.assertEqual(cli.main(["--idea", "example"]), 3)
 
+            (output_dir / "REVIEW.md").write_text(
+                "STATUS: BLOCKED\nUnresolved blocker.\n",
+                encoding="utf-8",
+            )
             (output_dir / "RELEASE_READINESS.md").write_text(
                 "STATUS: BLOCKED\nUnresolved high severity finding.\n",
                 encoding="utf-8",
@@ -92,6 +135,42 @@ class PipelineTests(unittest.TestCase):
             ):
                 self.assertEqual(cli.main(["--idea", "example"]), 3)
 
+            (output_dir / "REVIEW.md").write_text(
+                "STATUS: READY_WITH_LIMITATIONS\nTests not executed.\n",
+                encoding="utf-8",
+            )
+            (output_dir / "RELEASE_READINESS.md").write_text(
+                "STATUS: READY\n",
+                encoding="utf-8",
+            )
+            with (
+                patch.object(cli, "_project_output_dir", return_value=output_dir),
+                patch.object(cli, "create_crew", return_value=mocked_crew),
+                redirect_stdout(StringIO()),
+                redirect_stderr(StringIO()),
+            ):
+                self.assertEqual(cli.main(["--idea", "example"]), 3)
+
+            (output_dir / "REVIEW.md").write_text(
+                "STATUS: BLOCKED\nUnresolved blocker.\n",
+                encoding="utf-8",
+            )
+            (output_dir / "RELEASE_READINESS.md").write_text(
+                "STATUS: READY\n",
+                encoding="utf-8",
+            )
+            with (
+                patch.object(cli, "_project_output_dir", return_value=output_dir),
+                patch.object(cli, "create_crew", return_value=mocked_crew),
+                redirect_stdout(StringIO()),
+                redirect_stderr(StringIO()),
+            ):
+                self.assertEqual(cli.main(["--idea", "example"]), 3)
+
+            (output_dir / "REVIEW.md").write_text(
+                "STATUS: READY_WITH_LIMITATIONS\nTests not executed.\n",
+                encoding="utf-8",
+            )
             (output_dir / "RELEASE_READINESS.md").write_text(
                 "STATUS: READY_WITH_LIMITATIONS\nTests not executed.\n",
                 encoding="utf-8",
@@ -103,6 +182,20 @@ class PipelineTests(unittest.TestCase):
                 redirect_stderr(StringIO()),
             ):
                 self.assertEqual(cli.main(["--idea", "example"]), 0)
+
+    def test_cli_reports_pipeline_failures_without_releasing(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            output_dir = Path(temporary)
+            mocked_crew = SimpleNamespace(
+                kickoff=Mock(side_effect=RuntimeError("provider request failed"))
+            )
+            with (
+                patch.object(cli, "_project_output_dir", return_value=output_dir),
+                patch.object(cli, "create_crew", return_value=mocked_crew),
+                redirect_stdout(StringIO()),
+                redirect_stderr(StringIO()),
+            ):
+                self.assertEqual(cli.main(["--idea", "example"]), 1)
 
     def test_existing_project_output_is_never_mixed(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

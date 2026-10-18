@@ -10,7 +10,12 @@ from software_factory.config import LLMSettings
 from software_factory.tools import create_file_tools, create_research_tools
 
 
-def create_agents(settings: LLMSettings, output_dir: Path) -> dict[str, Agent]:
+def create_agents(
+    settings: LLMSettings,
+    output_dir: Path,
+    *,
+    verbose: bool = False,
+) -> dict[str, Agent]:
     """Create the executive team and all department roles.
 
     Provider LLMs are shared by related roles to keep provider configuration
@@ -37,7 +42,7 @@ def create_agents(settings: LLMSettings, output_dir: Path) -> dict[str, Agent]:
             ),
             allow_delegation=False,
             max_iter=max_iter,
-            verbose=True,
+            verbose=verbose,
         )
 
     return {

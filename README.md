@@ -65,6 +65,9 @@ You can also use the installed project command:
 uv run software-factory --idea "Build a real-time URL shortener with rate limiting"
 ```
 
+Add `--verbose` to either command to show per-agent and per-task CrewAI logs.
+Normal runs keep those detailed logs suppressed.
+
 The command creates the target under `output/` and runs a sequential company
 pipeline. Each employee has a distinct role and assigned deliverable; related
 employees share the configured provider model:
@@ -108,7 +111,10 @@ source, tests, builds, or deployment commands: executing model-generated code
 without an isolated sandbox would be unsafe. The final reports must state this
 limitation; the release manager can mark a project
 `STATUS: READY_WITH_LIMITATIONS` only when remaining checks are non-blocking.
-Review reports use blocker/high findings to block release. This is a
+The CLI verifies that both `REVIEW.md` and `RELEASE_READINESS.md` contain a
+recognized first-line status, and it will not accept a release-manager status
+that overrides QA's `BLOCKED` or `READY_WITH_LIMITATIONS` status. Review
+reports use blocker/high findings to block release. This is a
 human-supervised quality workflow, not a guarantee of production readiness.
 No model-generated status is a substitute for a human review of the generated
 code, dependencies, and operational configuration.

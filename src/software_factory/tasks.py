@@ -80,8 +80,9 @@ def create_tasks(
             "assumptions that justify them."
         ),
         expected_output=(
-            "PRODUCT_SPEC.md on disk with a testable specification covering scope, personas, user "
-            "stories, acceptance criteria, functional and non-functional "
+            "PRODUCT_SPEC.md on disk with a testable specification covering "
+            "scope, personas, user stories, acceptance criteria, functional "
+            "and non-functional "
             "requirements, API contracts, data schema, and assumptions."
         ),
         agent=agents["product_manager"],
@@ -648,14 +649,8 @@ def create_tasks(
             architecture_revision_task,
             product_research_task,
             engineering_research_task,
-            design_revision_task,
-            backend_revision_task,
-            frontend_revision_task,
-            qa_plan_task,
             qa_test_revision_task,
-            devops_senior_task,
             devops_revision_task,
-            analytics_task,
             legal_task,
             accounting_task,
         ],
@@ -688,14 +683,13 @@ def create_tasks(
         agent=agents["technical_reviewer"],
         context=[
             architecture_revision_task,
+            product_revision_task,
+            design_revision_task,
+            backend_revision_task,
+            frontend_revision_task,
             qa_plan_task,
             qa_test_revision_task,
-            devops_senior_task,
             devops_revision_task,
-            analytics_task,
-            legal_task,
-            accounting_task,
-            intern_task,
         ],
     )
     improvement_task = Task(
@@ -755,7 +749,7 @@ def create_tasks(
         agent=agents["release_manager"],
         context=[
             architecture_revision_task,
-            design_review_task,
+            product_revision_task,
             backend_review_task,
             frontend_review_task,
             qa_test_review_task,
@@ -763,7 +757,6 @@ def create_tasks(
             final_review_task,
             improvement_task,
             quality_gate_task,
-            intern_task,
         ],
     )
     return [

@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import re
 import sys
 from pathlib import Path
+
+from litellm.exceptions import APIError
 
 from software_factory.config import ConfigurationError, PROJECT_ROOT
 from software_factory.crew import create_crew
@@ -17,6 +20,7 @@ RELEASE_STATUSES = {
     "STATUS: READY_WITH_LIMITATIONS",
     "STATUS: BLOCKED",
 }
+logger = logging.getLogger(__name__)
 
 
 def _slugify_idea(idea: str) -> str:
@@ -71,7 +75,43 @@ def build_parser() -> argparse.ArgumentParser:
         "--project-name",
         help="Optional lowercase project slug; defaults to a slug of the idea.",
     )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Show detailed CrewAI agent and task logs.",
+    )
     return parser
+
+
+def _read_release_status(report_path: Path) -> str:
+    """Read and validate a release report's machine-readable status line."""
+    if not report_path.is_file():
+        raise FileNotFoundError(f"Required release report is missing: {report_path}")
+    lines = report_path.read_text(encoding="utf-8").splitlines()
+    status = lines[0].strip() if lines else ""
+    if status not in RELEASE_STATUSES:
+        raise ValueError(
+            f"{report_path.name} must begin with a recognized STATUS line."
+        )
+    return status
+
+
+def _validate_release_artifacts(output_dir: Path) -> str:
+    """Ensure release management cannot override QA's blocked status."""
+    qa_status = _read_release_status(output_dir / "REVIEW.md")
+    release_status = _read_release_status(output_dir / "RELEASE_READINESS.md")
+    if qa_status == "STATUS: BLOCKED" and release_status != "STATUS: BLOCKED":
+        raise ValueError(
+            "Release readiness cannot override a blocked QA review."
+        )
+    if (
+        qa_status == "STATUS: READY_WITH_LIMITATIONS"
+        and release_status == "STATUS: READY"
+    ):
+        raise ValueError(
+            "Release readiness cannot claim READY while QA reports limitations."
+        )
+    return release_status
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -85,40 +125,38 @@ def main(argv: list[str] | None = None) -> int:
     project_name = args.project_name or _slugify_idea(idea)
     try:
         output_dir = _project_output_dir(project_name)
-        crew = create_crew(output_dir)
+        crew = create_crew(output_dir, verbose=args.verbose)
     except (ConfigurationError, OSError, ValueError) as error:
         print(f"Unable to prepare project output: {error}", file=sys.stderr)
         return 2
 
-    result = crew.kickoff(
-        inputs={
-            "idea": idea,
-            "project_name": project_name,
-            "output_dir": str(output_dir),
-        }
-    )
+    try:
+        result = crew.kickoff(
+            inputs={
+                "idea": idea,
+                "project_name": project_name,
+                "output_dir": str(output_dir),
+            }
+        )
+    except (APIError, OSError, RuntimeError, ValueError):
+        logger.exception("Software factory pipeline execution failed.")
+        print(
+            f"Pipeline execution failed. Inspect logs and partial output in {output_dir}.",
+            file=sys.stderr,
+        )
+        return 1
+
     print(f"\nGenerated project: {output_dir}")
     print(result)
-    readiness_file = output_dir / "RELEASE_READINESS.md"
-    if not readiness_file.is_file():
-        print(
-            "Release gate failed: RELEASE_READINESS.md was not produced.",
-            file=sys.stderr,
-        )
-        return 3
-
-    first_line = readiness_file.read_text(encoding="utf-8").splitlines()
-    status = first_line[0].strip() if first_line else ""
-    if status not in RELEASE_STATUSES:
-        print(
-            "Release gate failed: RELEASE_READINESS.md must begin with a "
-            "recognized STATUS line.",
-            file=sys.stderr,
-        )
+    try:
+        status = _validate_release_artifacts(output_dir)
+    except (OSError, UnicodeError, ValueError) as error:
+        print(f"Release gate failed: {error}", file=sys.stderr)
         return 3
     if status == "STATUS: BLOCKED":
         print(
-            f"Release blocked. Review {readiness_file} and address the listed "
+            f"Release blocked. Review {output_dir / 'RELEASE_READINESS.md'} "
+            "and address the listed "
             "findings before using the generated project.",
             file=sys.stderr,
         )
@@ -127,8 +165,8 @@ def main(argv: list[str] | None = None) -> int:
     if status == "STATUS: READY_WITH_LIMITATIONS":
         print(
             f"Generated project is ready with disclosed limitations. "
-            f"Review {readiness_file} before use."
+            f"Review {output_dir / 'RELEASE_READINESS.md'} before use."
         )
     else:
-        print(f"Release gate passed: {readiness_file}")
+        print(f"Release gate passed: {output_dir / 'RELEASE_READINESS.md'}")
     return 0

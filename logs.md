@@ -73,6 +73,11 @@ The factory now models the full department roster shown in the supplied team cha
 - Updated README workflow, research configuration, quality limitations, and unit-test instructions; added regression tests for pipeline structure, optional research, output collision safety, and release gating.
 - Validation records: 22 agents, 37 ordered tasks, explicit upstream context ordering, Python compilation, CLI, locked dependencies, and release-gate unit tests.
 - Confirmed all 4 regression tests pass, the optional Serper tool initializes when configured, the CLI help succeeds, and lockfile/whitespace checks pass. Generated application code and model-driven reviews were not executed.
+- Optimized ordinary CLI output by disabling verbose agent/task logging by default and exposing `--verbose` when detailed traces are needed.
+- Reduced broad task-context fan-in in handoff/review/release stages while keeping required acceptance criteria and review dispositions available through scoped context plus on-disk inspection.
+- Hardened the release gate to require valid statuses in both QA `REVIEW.md` and `RELEASE_READINESS.md`, prevent release management from overriding blocked/limited QA outcomes, and report known provider, I/O, runtime, and validation failures with traceback logging.
+- Added tests for product/architecture review order, maximum task-context fan-in, QA/release status consistency, and pipeline failure handling.
+- All 5 regression tests now pass. Validation also includes compilation, CLI help, `uv lock --check`, and `git diff --check`.
 
 ### Summary
 
