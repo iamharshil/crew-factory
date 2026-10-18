@@ -102,3 +102,9 @@ The factory now uses a review-correct-release sequence with research and explici
 - Renamed `FREE_AI_README.md` to `FREE_AI_PROVIDERS.md` for a clearer, shorter filename.
 - Condensed the guide to the provider list, key free-tier restrictions, source links, and the factory's provider-key requirement.
 - Kept `FREE_AI_PROVIDERS.md` local and excluded it from the publication; removed its README link so the published README does not reference an unpublished file.
+
+### Additional free AI provider
+
+- Verified Cohere's official evaluation-key documentation and added its free trial allowance (up to 1,000 API calls/month) and current Chat rate limit to the local provider list.
+- Explicitly noted that evaluation keys are limited, production access is paid, and the source does not confirm cardless signup.
+- Added `FREE_AI_PROVIDERS.md` to `.gitignore` so the local provider list remains excluded from commits and pushes.
