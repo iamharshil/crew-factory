@@ -20,6 +20,16 @@ RELEASE_STATUSES = {
     "STATUS: READY_WITH_LIMITATIONS",
     "STATUS: BLOCKED",
 }
+ARCHITECTURE_STATUSES = {"STATUS: ACCEPT", "STATUS: BLOCKED"}
+REQUIRED_DELIVERABLES = (
+    "PRODUCT_SPEC.md",
+    "ARCHITECTURE.md",
+    "ARCHITECTURE_DECISIONS.md",
+    "TEST_PLAN.md",
+    "HANDOFF.md",
+    "TECHNICAL_REVIEW.md",
+    "IMPROVEMENTS.md",
+)
 logger = logging.getLogger(__name__)
 
 
@@ -96,10 +106,43 @@ def _read_release_status(report_path: Path) -> str:
     return status
 
 
+def _read_architecture_status(report_path: Path) -> str:
+    """Read the architecture decision's machine-readable first line."""
+    if not report_path.is_file():
+        raise FileNotFoundError(f"Required architecture decision is missing: {report_path}")
+    lines = report_path.read_text(encoding="utf-8").splitlines()
+    status = lines[0].strip() if lines else ""
+    if status not in ARCHITECTURE_STATUSES:
+        raise ValueError(
+            f"{report_path.name} must begin with `STATUS: ACCEPT` "
+            "or `STATUS: BLOCKED`."
+        )
+    return status
+
+
 def _validate_release_artifacts(output_dir: Path) -> str:
-    """Ensure release management cannot override QA's blocked status."""
+    """Ensure the release decision agrees with architecture and QA gates."""
+    missing = [
+        name
+        for name in REQUIRED_DELIVERABLES
+        if not (output_dir / name).is_file()
+        or (output_dir / name).stat().st_size == 0
+    ]
+    if missing:
+        names = ", ".join(missing)
+        raise FileNotFoundError(
+            f"Required project deliverable(s) are missing or empty: {names}."
+        )
+
+    architecture_status = _read_architecture_status(
+        output_dir / "ARCHITECTURE_DECISIONS.md"
+    )
     qa_status = _read_release_status(output_dir / "REVIEW.md")
     release_status = _read_release_status(output_dir / "RELEASE_READINESS.md")
+    if architecture_status == "STATUS: BLOCKED" and release_status != "STATUS: BLOCKED":
+        raise ValueError(
+            "Release readiness cannot override a blocked architecture decision."
+        )
     if qa_status == "STATUS: BLOCKED" and release_status != "STATUS: BLOCKED":
         raise ValueError(
             "Release readiness cannot override a blocked QA review."
@@ -131,7 +174,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     try:
-        result = crew.kickoff(
+        crew.kickoff(
             inputs={
                 "idea": idea,
                 "project_name": project_name,
@@ -146,8 +189,6 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 1
 
-    print(f"\nGenerated project: {output_dir}")
-    print(result)
     try:
         status = _validate_release_artifacts(output_dir)
     except (OSError, UnicodeError, ValueError) as error:
@@ -162,6 +203,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 3
 
+    print(f"Generated project: {output_dir}")
     if status == "STATUS: READY_WITH_LIMITATIONS":
         print(
             f"Generated project is ready with disclosed limitations. "

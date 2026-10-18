@@ -108,3 +108,11 @@ The factory now uses a review-correct-release sequence with research and explici
 - Verified Cohere's official evaluation-key documentation and added its free trial allowance (up to 1,000 API calls/month) and current Chat rate limit to the local provider list.
 - Explicitly noted that evaluation keys are limited, production access is paid, and the source does not confirm cardless signup.
 - Added `FREE_AI_PROVIDERS.md` to `.gitignore` so the local provider list remains excluded from commits and pushes.
+
+### Pipeline reliability and prompt improvements
+
+- Closed a release-gate gap by requiring the core generated deliverables to be present and non-empty before accepting a release.
+- Added a machine-readable architecture decision status and made the CLI reject release approval when architecture is blocked, matching the existing QA status consistency checks.
+- Reduced final review and release task context fan-in; reviewers are directed to inspect the generated artifacts on disk rather than receive redundant prior task output.
+- Removed printing the full CrewAI result from the CLI so successful runs produce concise output and release validation occurs before success is announced.
+- Added regression coverage for missing deliverables, blocked architecture decisions, and valid release artifacts; updated the README release-gate description.

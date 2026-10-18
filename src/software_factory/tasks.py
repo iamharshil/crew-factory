@@ -263,8 +263,10 @@ def create_tasks(
             "REVISE, update the architecture and ownership matrix to address "
             "every BLOCKER and HIGH finding and resolve ownership overlaps. "
             "If ACCEPT, preserve it. Write ARCHITECTURE_DECISIONS.md with "
-            "finding-by-finding disposition and a final ACCEPT or BLOCKED "
-            f"decision in {output_dir}. Record unresolved risks. Downstream "
+            "finding-by-finding disposition. Its first line must be exactly "
+            "`STATUS: ACCEPT` or `STATUS: BLOCKED`. Use BLOCKED if any "
+            "BLOCKER or HIGH architecture finding remains unresolved. "
+            f"Write it in {output_dir} and record unresolved risks. Downstream "
             "implementers must use the revised ARCHITECTURE.md."
         ),
         expected_output=(
@@ -645,15 +647,7 @@ def create_tasks(
             "instructions, configuration names, known gaps, and next steps."
         ),
         agent=agents["intern"],
-        context=[
-            architecture_revision_task,
-            product_research_task,
-            engineering_research_task,
-            qa_test_revision_task,
-            devops_revision_task,
-            legal_task,
-            accounting_task,
-        ],
+        context=[architecture_revision_task],
     )
     final_review_task = Task(
         description=(
@@ -684,10 +678,6 @@ def create_tasks(
         context=[
             architecture_revision_task,
             product_revision_task,
-            design_revision_task,
-            backend_revision_task,
-            frontend_revision_task,
-            qa_plan_task,
             qa_test_revision_task,
             devops_revision_task,
         ],
@@ -734,8 +724,11 @@ def create_tasks(
         description=(
             "Inspect REVIEW.md, ARCHITECTURE_DECISIONS.md, IMPROVEMENTS.md, "
             f"and actual deliverables at {output_dir}. Confirm required files "
-            "exist, junior review findings have dispositions, no blocker/high "
-            "issue remains unresolved, and verification is not misrepresented. "
+            "PRODUCT_SPEC.md, ARCHITECTURE.md, TEST_PLAN.md, HANDOFF.md, and "
+            "TECHNICAL_REVIEW.md exist and are non-empty; inspect the remaining "
+            "department reports with the directory/read tools. Confirm junior "
+            "review findings have dispositions, no blocker/high issue remains "
+            "unresolved, and verification is not misrepresented. "
             "Write RELEASE_READINESS.md with first line exactly `STATUS: READY`, "
             "`STATUS: READY_WITH_LIMITATIONS`, or `STATUS: BLOCKED`. Use "
             "BLOCKED if architecture or final QA is blocked, a blocker/high "
@@ -747,17 +740,7 @@ def create_tasks(
             "remaining risks, and required human actions."
         ),
         agent=agents["release_manager"],
-        context=[
-            architecture_revision_task,
-            product_revision_task,
-            backend_review_task,
-            frontend_review_task,
-            qa_test_review_task,
-            devops_review_task,
-            final_review_task,
-            improvement_task,
-            quality_gate_task,
-        ],
+        context=[architecture_revision_task, quality_gate_task],
     )
     return [
         product_research_task,

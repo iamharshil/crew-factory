@@ -43,7 +43,7 @@ class PipelineTests(unittest.TestCase):
                 for prerequisite in task.context:
                     self.assertIn(id(prerequisite), task_positions)
                     self.assertLess(task_positions[id(prerequisite)], index)
-        self.assertLessEqual(max(context_sizes), 9)
+        self.assertLessEqual(max(context_sizes), 6)
 
         task_descriptions = [task.description for task in crew.tasks]
         product_spec_index = next(
@@ -110,6 +110,12 @@ class PipelineTests(unittest.TestCase):
     def test_cli_blocks_release_without_valid_readiness_file(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             output_dir = Path(temporary)
+            for name in cli.REQUIRED_DELIVERABLES:
+                (output_dir / name).write_text("Required deliverable.\n", encoding="utf-8")
+            (output_dir / "ARCHITECTURE_DECISIONS.md").write_text(
+                "STATUS: ACCEPT\nNo unresolved blockers.\n",
+                encoding="utf-8",
+            )
             mocked_crew = SimpleNamespace(kickoff=Mock(return_value="completed"))
             with (
                 patch.object(cli, "_project_output_dir", return_value=output_dir),
@@ -182,6 +188,43 @@ class PipelineTests(unittest.TestCase):
                 redirect_stderr(StringIO()),
             ):
                 self.assertEqual(cli.main(["--idea", "example"]), 0)
+
+    def test_release_gate_rejects_missing_deliverables_and_blocked_architecture(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            output_dir = Path(temporary)
+            for name in cli.REQUIRED_DELIVERABLES:
+                (output_dir / name).write_text("Required deliverable.\n", encoding="utf-8")
+            (output_dir / "REVIEW.md").write_text(
+                "STATUS: READY\nReview complete.\n",
+                encoding="utf-8",
+            )
+            (output_dir / "RELEASE_READINESS.md").write_text(
+                "STATUS: READY\nRelease approved.\n",
+                encoding="utf-8",
+            )
+            (output_dir / "ARCHITECTURE_DECISIONS.md").write_text(
+                "STATUS: ACCEPT\nNo unresolved blockers.\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                cli._validate_release_artifacts(output_dir),
+                "STATUS: READY",
+            )
+
+            (output_dir / "ARCHITECTURE_DECISIONS.md").write_text(
+                "STATUS: BLOCKED\nUnresolved high-severity finding.\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "blocked architecture"):
+                cli._validate_release_artifacts(output_dir)
+
+            (output_dir / "ARCHITECTURE_DECISIONS.md").write_text(
+                "STATUS: ACCEPT\nNo unresolved blockers.\n",
+                encoding="utf-8",
+            )
+            (output_dir / "HANDOFF.md").write_text("", encoding="utf-8")
+            with self.assertRaisesRegex(FileNotFoundError, "HANDOFF.md"):
+                cli._validate_release_artifacts(output_dir)
 
     def test_cli_reports_pipeline_failures_without_releasing(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
