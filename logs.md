@@ -82,3 +82,23 @@ The factory now models the full department roster shown in the supplied team cha
 ### Summary
 
 The factory now uses a review-correct-release sequence with research and explicit bounded remediation. It does not execute generated code; reports and release status must disclose unexecuted tests/builds and require human review before deployment.
+
+### Free AI provider guide
+
+- Added `FREE_AI_README.md` with current official-source links and separate coverage of hosted free API tiers, local inference, signup/payment caveats, privacy, quotas, and common services that are not actually free providers.
+- Documented that this repository currently requires all four configured provider keys, so a single free API does not run the factory without implementation changes.
+- Linked the guide from the main README.
+- Researched and added Mistral Studio Free mode and SambaNova Cloud Free Tier, both with explicit official no-payment-method/no-card documentation; added Alibaba Cloud Model Studio as a separate Singapore-only, 90-day free quota with signup-card caveat.
+
+### Free provider accuracy review
+
+- Rechecked the provider claims against official pricing, quota, and setup documentation as of October 19, 2026.
+- Reworked the guide to distinguish active free quotas from cardless signup guarantees, temporary/region-limited allowances, and local inference; removed entries for retired, paid-only, or insufficiently verified providers.
+- Kept current documented free options with their actual restrictions, and removed GroqCloud because the reviewed official limits page did not establish a currently free allowance precisely enough for this list.
+- Clarified quotas and conditions for OpenRouter, Gemini, SambaNova, Cloudflare Workers AI, Ollama Cloud, and Alibaba Model Studio; preserved the factory's four-provider key requirements and the warning that free tiers may not cover a full factory run.
+
+### Free AI guide cleanup
+
+- Renamed `FREE_AI_README.md` to `FREE_AI_PROVIDERS.md` for a clearer, shorter filename.
+- Condensed the guide to the provider list, key free-tier restrictions, source links, and the factory's provider-key requirement.
+- Kept `FREE_AI_PROVIDERS.md` local and excluded it from the publication; removed its README link so the published README does not reference an unpublished file.
