@@ -1,0 +1,22 @@
+[project]
+name = "software-factory"
+version = "0.1.0"
+description = "An autonomous AI software factory powered by CrewAI"
+readme = "README.md"
+authors = [
+    { name = "Harshil", email = "harshilc71@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "crewai>=1.15.28",
+    "crewai-tools>=1.15.28",
+    "litellm>=1.106.0",
+    "python-dotenv>=1.2.4",
+]
+
+[project.scripts]
+software-factory = "software_factory.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.13.1,<0.14.0"]
+build-backend = "uv_build"
